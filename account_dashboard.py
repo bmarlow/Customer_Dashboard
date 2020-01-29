@@ -10,12 +10,14 @@ parser.add_argument("-sd", "--startdate", help="provide the start date of the da
 parser.add_argument("-ed", "--enddate", help="provide the end date of the data you would like to review (YYYY-MM-DD format)", default="")
 parser.add_argument("-a", "--accountname", help="the account name you would like to search for", default="")
 parser.add_argument("-i", "--include", help="include accounts that have 0 values", action="store_true", default=False)
+parser.add_argument("-c", "--csv", help="also send data to csv file in same dir as script", action="store_true", default=False)
 
 args = parser.parse_args()
 user = args.user
 password = args.password
 account_name = args.accountname
 include = args.include
+csv = args.csv
 #start_date = args.startdate
 #end_date = args.enddate
 
@@ -35,6 +37,10 @@ def main():
         #account.parse_updates(updates)
         #account.parse_cases()
         #account.parse_labs()
+
+        if csv:
+            #csv instructions here
+            pass
 
 
 def get_accounts(account_name):
@@ -102,16 +108,17 @@ class CustomerDashboard(object):
         """parse out case data into something readable"""
         pass
 
-    def parse_errata(self):
+    def parse_errata(self, errata_data):
         """parse out errata into something readable"""
         pass
 
-    def parse_labs(self):
+    def parse_labs(self, labs_data):
         """parse out labs into something readable"""
         pass
 
-    def parse_subs(self):
+    def parse_subs(self, subs_data):
         """parse out subs into something readable"""
+        pass
 
     def csv_views(self, view_data):
         """generate csv output for view_data"""
@@ -127,6 +134,10 @@ class CustomerDashboard(object):
 
     def csv_labs(self, labs_data):
         """generate csv output for labs_data"""
+        pass
+
+    def csv_subs(self, subs_data):
+        """generate csv output for subs_data"""
         pass
 
 

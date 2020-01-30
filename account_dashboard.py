@@ -113,20 +113,27 @@ class CustomerDashboard(object):
     def parser_print(self, dict_keys, header, data):
         """prints out the parsed data"""
         # special case for cases due to different structure of data
-        if dict_keys == ["cases"]:
-            print("")
-            print("-----------------------------------------------------------------")
-            print("******************* {:^25s} *******************".format(header))
-            print("-----------------------------------------------------------------")
-            self.print_nested_dicts(data["overallSeverityTotal"])
-
         # print all values, including zeros if include flag is set
-        elif include:
+        if include and dict_keys != ["cases"]:
             print("")
             print("-----------------------------------------------------------------")
             print("******************* {:^25s} *******************".format(header))
             print("-----------------------------------------------------------------")
             self.print_nested_dicts(data)
+
+        elif dict_keys == ["cases"]:
+            if data["total"] != 0:
+                print("")
+                print("-----------------------------------------------------------------")
+                print("******************* {:^25s} *******************".format(header))
+                print("-----------------------------------------------------------------")
+                self.print_nested_dicts(data["overallSeverityTotal"])
+            elif include:
+                print("")
+                print("-----------------------------------------------------------------")
+                print("******************* {:^25s} *******************".format(header))
+                print("-----------------------------------------------------------------")
+                self.print_nested_dicts(data["overallSeverityTotal"])
 
         # if our filter is one level deep
         elif len(dict_keys) == 1:
@@ -168,11 +175,28 @@ class CustomerDashboard(object):
     def parse_errata(self, errata_data):
         """parse out errata into something readable"""
         # doesn"t use parse_print or print_nested_dicts due to different data formatting
+
+        # this is gross but there for consistent formatting
+        if errata_data["grandTotal"] == 0:
+            if include:
+                print("")
+                print("-----------------------------------------------------------------")
+                print("******************* {:^25s} *******************".format("Errata Data"))
+                print("-----------------------------------------------------------------")
+                print("  Critical: 0")
+                print("  Important: 0")
+                print("  Moderate: 0")
+                print("  Low: 0")
+                print("  Bugfix: 0")
+                print("  Security: 0")
+                print("  Enhancement: 0")
+        # if no errata is consumed return from function
+            return
+
         print("")
         print("-----------------------------------------------------------------")
         print("******************* {:^25s} *******************".format("Errata Data"))
         print("-----------------------------------------------------------------")
-
         print("  Critical: " + str(errata_data["bySeverity"]["Critical"]))
         print("  Important: " + str(errata_data["bySeverity"]["Important"]))
         print("  Moderate: " + str(errata_data["bySeverity"]["Moderate"]))

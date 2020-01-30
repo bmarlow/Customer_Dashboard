@@ -29,12 +29,12 @@ def main():
 
     for account_number, account_name in accounts.items():
         account = CustomerDashboard(account_number, account_name)
-        print('')
-        print('-------------------------------------------------------------------------------------')
-        print('-------------------------------------------------------------------------------------')
+        print("")
+        print("-------------------------------------------------------------------------------------")
+        print("-------------------------------------------------------------------------------------")
         print("*********************** {:^25s}  ({:^8s}) ***********************".format(account_name, account_number))
-        print('-------------------------------------------------------------------------------------')
-        print('-------------------------------------------------------------------------------------')
+        print("-------------------------------------------------------------------------------------")
+        print("-------------------------------------------------------------------------------------")
         views = account.get_views()
         errata = account.get_errata()
         cases = account.get_cases()
@@ -57,11 +57,11 @@ def get_accounts(account_search):
 
     # different url used if an account number is provided
     if account_search.isnumeric():
-        url = 'https://access.redhat.com/hydra/rest/dashboard/v2/accounts?id='
+        url = "https://access.redhat.com/hydra/rest/dashboard/v2/accounts?id="
     else:
-        url = 'https://access.redhat.com/hydra/rest/dashboard/v2/accounts?name='
+        url = "https://access.redhat.com/hydra/rest/dashboard/v2/accounts?name="
 
-    r = requests.get(url + account_search + '&limit=200', auth=(user, password))
+    r = requests.get(url + account_search + "&limit=200", auth=(user, password))
     j = json.loads(r.text)
     for i in j["accounts"]:
         account_name = (i["name"])
@@ -112,48 +112,51 @@ class CustomerDashboard(object):
 
     def parser_print(self, dict_keys, header, data):
         """prints out the parsed data"""
-        # print all values, including zeros if include flag is set
-        if include:
-            print('')
-            print('-----------------------------------------------------------------')
-            print("******************* {:^25s} *******************".format(header))
-            print('-----------------------------------------------------------------')
-            self.print_nested_dicts(data)
-
         # special case for cases due to different structure of data
-        elif dict_keys == ['cases']:
-            print('')
-            print('-----------------------------------------------------------------')
+        if dict_keys == ["cases"]:
+            print("")
+            print("-----------------------------------------------------------------")
             print("******************* {:^25s} *******************".format(header))
-            print('-----------------------------------------------------------------')
+            print("-----------------------------------------------------------------")
             self.print_nested_dicts(data["overallSeverityTotal"])
+
+        # print all values, including zeros if include flag is set
+        elif include:
+            print("")
+            print("-----------------------------------------------------------------")
+            print("******************* {:^25s} *******************".format(header))
+            print("-----------------------------------------------------------------")
+            self.print_nested_dicts(data)
 
         # if our filter is one level deep
         elif len(dict_keys) == 1:
             if data[dict_keys[0]] != 0:
-                print('')
-                print('-----------------------------------------------------------------')
+                print("")
+                print("-----------------------------------------------------------------")
                 print("******************* {:^25s} *******************".format(header))
-                print('-----------------------------------------------------------------')
+                print("-----------------------------------------------------------------")
                 self.print_nested_dicts(data)
 
         # if our filter is two levels deep
         elif len(dict_keys) == 2:
             if data[dict_keys[0]][dict_keys[1]] != 0:
-                print('')
-                print('-----------------------------------------------------------------')
+                print("")
+                print("-----------------------------------------------------------------")
                 print("******************* {:^25s} *******************".format(header))
-                print('-----------------------------------------------------------------')
+                print("-----------------------------------------------------------------")
                 self.print_nested_dicts(data)
 
         else:
-            print(header)
+            print("")
+            print("-----------------------------------------------------------------")
+            print("******************* {:^25s} *******************".format(header))
+            print("-----------------------------------------------------------------")
             self.print_nested_dicts(data)
 
     def parse_views(self, view_data):
         """parse out content view data into something readable"""
         keys = ["grandTotal", "total"]
-        header = 'Content View Data'
+        header = "Content View Data"
         self.parser_print(keys, header, view_data)
 
     def parse_cases(self, case_data):
@@ -164,11 +167,11 @@ class CustomerDashboard(object):
 
     def parse_errata(self, errata_data):
         """parse out errata into something readable"""
-        # doesn't use parse_print or print_nested_dicts due to different data formatting
-        print('')
-        print('-----------------------------------------------------------------')
+        # doesn"t use parse_print or print_nested_dicts due to different data formatting
+        print("")
+        print("-----------------------------------------------------------------")
         print("******************* {:^25s} *******************".format("Errata Data"))
-        print('-----------------------------------------------------------------')
+        print("-----------------------------------------------------------------")
 
         print("  Critical: " + str(errata_data["bySeverity"]["Critical"]))
         print("  Important: " + str(errata_data["bySeverity"]["Important"]))
@@ -182,23 +185,23 @@ class CustomerDashboard(object):
         """parse out labs into something readable"""
         labs = {}
         # get a count of each of the used labs
-        labs.update({'configuration': labs_data['configuration']['labs']})
-        labs.update({'deployment': labs_data['deployment']['labs']})
-        labs.update({'security': labs_data['security']['labs']})
-        labs.update({'troubleshoot': labs_data['troubleshoot']['labs']})
+        labs.update({"configuration": labs_data["configuration"]["labs"]})
+        labs.update({"deployment": labs_data["deployment"]["labs"]})
+        labs.update({"security": labs_data["security"]["labs"]})
+        labs.update({"troubleshoot": labs_data["troubleshoot"]["labs"]})
 
-        # doesn't use parse_print or print_nested_dicts due to different data formatting
+        # doesn"t use parse_print or print_nested_dicts due to different data formatting
         for k, v in labs.items():
             # check if the value is an empty array
             if v != []:
-                # if the header variable isn't set then print it (so that it only executes on first dict item)
+                # if the header variable isn"t set then print it (so that it only executes on first dict item)
                 try:
                     header
                 except NameError:
-                    print('')
-                    print('-----------------------------------------------------------------')
+                    print("")
+                    print("-----------------------------------------------------------------")
                     print("******************* {:^25s} *******************".format("Labs Data"))
-                    print('-----------------------------------------------------------------')
+                    print("-----------------------------------------------------------------")
                     header = True
                 print("  " + k + ": " + str(len(v)))
 
@@ -233,14 +236,14 @@ class CustomerDashboard(object):
         """utility for printing out nested dicts, hence the recursiveness"""
         for k, v in d.items():
             if isinstance(v, dict):
-                print('\n  ' + k)
-                print('  -------------------------------------------')
+                print("\n  " + k)
+                print("  -------------------------------------------")
                 self.print_nested_dicts(v)
             else:
                 print("  {:<15} : {:<10}".format(k, str(v)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     if not password:
-        password = getpass.getpass('\nEnter password for %s: ' % user)
+        password = getpass.getpass("\nEnter password for %s: " % user)
     main()

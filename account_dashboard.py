@@ -2,8 +2,8 @@ import argparse
 import getpass
 import json
 import requests
-import multiprocessing
 import sys
+import concurrent.futures
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--user", help="provide user name for https://access.redhat.com/", default="", required=True)
@@ -36,6 +36,7 @@ def main():
         accounts = get_accounts(account_search)
 
     for account_number, account_name in accounts.items():
+
         account = CustomerDashboard(account_number, account_name)
         print("")
         print("-------------------------------------------------------------------------------------")
@@ -44,12 +45,22 @@ def main():
         print("-------------------------------------------------------------------------------------")
         print("-------------------------------------------------------------------------------------")
 
-        views = account.get_views()
-        errata = account.get_errata()
-        cases = account.get_cases()
-        labs = account.get_labs()
-        subs = account.get_subs()
+        # asynchronously make API calls
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+        views_async = executor.submit(account.get_views)
+        errata_async = executor.submit(account.get_errata)
+        cases_async = executor.submit(account.get_cases)
+        labs_async = executor.submit(account.get_labs)
+        subs_async = executor.submit(account.get_subs)
 
+        # gather API call results
+        views = views_async.result()
+        errata = errata_async.result()
+        cases = cases_async.result()
+        labs = labs_async.result()
+        subs = subs_async.result()
+
+        # parse API results
         account.parse_views(views)
         account.parse_errata(errata)
         account.parse_cases(cases)
@@ -124,14 +135,14 @@ class CustomerDashboard(object):
         j = self.json_grabber("v2/views")
         return j
 
-    def get_cases(self):
-        """get case data"""
-        j = self.json_grabber("v2/cases")
-        return j
-
     def get_errata(self):
         """get errata data"""
         j = self.json_grabber("v2/errata")
+        return j
+
+    def get_cases(self):
+        """get case data"""
+        j = self.json_grabber("v2/cases")
         return j
 
     def get_labs(self):

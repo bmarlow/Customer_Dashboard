@@ -2,6 +2,8 @@ import argparse
 import getpass
 import json
 import requests
+import multiprocessing
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--user", help="provide user name for https://access.redhat.com/", default="", required=True)
@@ -11,6 +13,7 @@ parser.add_argument("-ed", "--enddate", help="provide the end date of the data y
 parser.add_argument("-a", "--accountsearch", help="the account name you would like to search for", default="", required=True)
 parser.add_argument("-i", "--include", help="include accounts that have 0 values", action="store_true", default=False)
 parser.add_argument("-c", "--csv", help="also send data to csv file in same dir as script", action="store_true", default=False)
+parser.add_argument("-f", "--file", help="load account numbers from CSV file", default="")
 
 
 args = parser.parse_args()
@@ -19,13 +22,18 @@ password = args.password
 account_search = args.accountsearch
 include = args.include
 csv = args.csv
+file = args.file
 start_date = args.startdate
 end_date = args.enddate
 
 
 def main():
     """main function, instantiates object for each account"""
-    accounts = get_accounts(account_search)
+
+    if file:
+        accounts = get_accounts_from_csv(file)
+    else:
+        accounts = get_accounts(account_search)
 
     for account_number, account_name in accounts.items():
         account = CustomerDashboard(account_number, account_name)
@@ -35,11 +43,13 @@ def main():
         print("*********************** {:^25s}  ({:^8s}) ***********************".format(account_name, account_number))
         print("-------------------------------------------------------------------------------------")
         print("-------------------------------------------------------------------------------------")
+
         views = account.get_views()
         errata = account.get_errata()
         cases = account.get_cases()
         labs = account.get_labs()
         subs = account.get_subs()
+
         account.parse_views(views)
         account.parse_errata(errata)
         account.parse_cases(cases)
@@ -49,6 +59,20 @@ def main():
         if csv:
             #csv instructions here
             pass
+
+
+def get_accounts_from_csv(file):
+    """generates a list of accounts from a csv file"""
+    account_dict = {}
+    with open(file) as f:
+        account_numbers_string = f.readlines()
+
+    account_numbers = account_numbers_string.split(",")
+
+    for account_number in account_numbers:
+        account_dict.update({account_number: "Import from CSV, No name Provided"})
+
+    return account_dict
 
 
 def get_accounts(account_search):
@@ -63,6 +87,16 @@ def get_accounts(account_search):
 
     r = requests.get(url + account_search + "&limit=200", auth=(user, password))
     j = json.loads(r.text)
+
+    # double check to make sure that the user authenticates successfully
+    try:
+        if j["message"] == "Unable to authenticate user":
+            print("There was authentication error, please try again.")
+            sys.exit(1)
+    except KeyError:
+        # if auth is successful keep going
+        pass
+
     for i in j["accounts"]:
         account_name = (i["name"])
         account_number = (i["accountNumber"])

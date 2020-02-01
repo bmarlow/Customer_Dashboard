@@ -10,7 +10,7 @@ parser.add_argument("-u", "--user", help="provide user name for https://access.r
 parser.add_argument("-p", "--password", help="password for the username provided, if you wish for it to be encrypted please leave blank and you will be prompted", default="")
 parser.add_argument("-sd", "--startdate", help="provide the start date of the data you would like to review (YYYY-MM-DD format)", default="", required=True)
 parser.add_argument("-ed", "--enddate", help="provide the end date of the data you would like to review (YYYY-MM-DD format)", default="", required=True)
-parser.add_argument("-a", "--accountsearch", help="the account name you would like to search for", default="", required=True)
+parser.add_argument("-a", "--accountsearch", help="the account name you would like to search for", default="")
 parser.add_argument("-i", "--include", help="include accounts that have 0 values", action="store_true", default=False)
 parser.add_argument("-c", "--csv", help="also send data to csv file in same dir as script", action="store_true", default=False)
 parser.add_argument("-f", "--file", help="load account numbers from CSV file", default="")
@@ -65,9 +65,9 @@ def get_accounts_from_csv(file):
     """generates a list of accounts from a csv file"""
     account_dict = {}
     with open(file) as f:
-        account_numbers_string = f.readlines()
+        account_numbers_list = f.readlines()
 
-    account_numbers = account_numbers_string.split(",")
+    account_numbers = account_numbers_list[0].split(",")
 
     for account_number in account_numbers:
         account_dict.update({account_number: "Import from CSV, No name Provided"})
@@ -302,6 +302,10 @@ class CustomerDashboard(object):
 
 
 if __name__ == "__main__":
+    if not file and not account_search:
+        print("\nYou must select an account name/id or provide a CSV file with account numbers")
+        sys.exit(1)
+
     if not password:
         password = getpass.getpass("\nEnter password for %s: " % user)
     main()

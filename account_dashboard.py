@@ -2,8 +2,11 @@ import argparse
 import getpass
 import json
 import requests
-import multiprocessing
 import sys
+import concurrent.futures
+import logging
+import io
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--user", help="provide user name for https://access.redhat.com/", default="", required=True)
@@ -30,35 +33,59 @@ end_date = args.enddate
 def main():
     """main function, instantiates object for each account"""
 
+    start = datetime.datetime.now()
+
     if file:
         accounts = get_accounts_from_csv(file)
     else:
         accounts = get_accounts(account_search)
 
-    for account_number, account_name in accounts.items():
-        account = CustomerDashboard(account_number, account_name)
-        print("")
-        print("-------------------------------------------------------------------------------------")
-        print("-------------------------------------------------------------------------------------")
-        print("*********************** {:^25s}  ({:^8s}) ***********************".format(account_name, account_number))
-        print("-------------------------------------------------------------------------------------")
-        print("-------------------------------------------------------------------------------------")
+    # if you need to debug comment out the futures loop and use this one
+    #for account_number, account_name in accounts.items():
+    #    account_run(account_number, account_name)
 
-        views = account.get_views()
-        errata = account.get_errata()
-        cases = account.get_cases()
-        labs = account.get_labs()
-        subs = account.get_subs()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        fs = [executor.submit(account_run, account_number, account_name) for account_number, account_name in accounts.items()]
+        concurrent.futures.wait(fs)
 
-        account.parse_views(views)
-        account.parse_errata(errata)
-        account.parse_cases(cases)
-        account.parse_labs(labs)
-        account.parse_subs(subs)
+    print("Account Parsing Finished, a total of " + str(len(accounts)) + " accounts were checked.")
+    end = datetime.datetime.now()
+    delta = end - start
+    print(delta)
 
-        if csv:
-            #csv instructions here
-            pass
+
+def account_run(account_number, account_name):
+    """orchestrates the calling of other functions for calling"""
+    account = CustomerDashboard(account_number, account_name)
+    account.create_logger()
+
+    # asynchronously make API calls
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+    views_async = executor.submit(account.get_views)
+    errata_async = executor.submit(account.get_errata)
+    cases_async = executor.submit(account.get_cases)
+    labs_async = executor.submit(account.get_labs)
+    subs_async = executor.submit(account.get_subs)
+
+    # gather API call results
+    views = views_async.result()
+    errata = errata_async.result()
+    cases = cases_async.result()
+    labs = labs_async.result()
+    subs = subs_async.result()
+
+    # parse API results
+    account.parse_views(views)
+    account.parse_errata(errata)
+    account.parse_cases(cases)
+    account.parse_labs(labs)
+    account.parse_subs(subs)
+
+    account.close_logger()
+
+    if csv:
+        #csv instructions here
+        pass
 
 
 def get_accounts_from_csv(file):
@@ -112,6 +139,32 @@ class CustomerDashboard(object):
         self.account_number = account_number
         self.account_name = account_name
         self.base_url = "https://access.redhat.com/hydra/rest/dashboard/"
+        self.logger = logging.getLogger(self.account_name + "-" + self.account_number)
+        self.log_capture_string = io.StringIO()
+
+    def create_logger(self):
+        """creates logging object"""
+
+        self.logger.setLevel(logging.INFO)
+
+        buffer = logging.StreamHandler(self.log_capture_string)
+        buffer.setFormatter(logging.Formatter("%(message)s"))
+        self.logger.addHandler(buffer)
+        self.logger.info("")
+        self.logger.info("-------------------------------------------------------------------------------------")
+        self.logger.info("-------------------------------------------------------------------------------------")
+        self.logger.info("*********************** {:^25s}  ({:^8s}) ***********************".format(self.account_name, self.account_number))
+        self.logger.info("-------------------------------------------------------------------------------------")
+        self.logger.info("-------------------------------------------------------------------------------------")
+
+    def close_logger(self):
+        """prints and closes the logging object"""
+        # grab the log stream from the stringio object
+        log_contents = self.log_capture_string.getvalue()
+
+        # close the stringio object if its only one run, because thats a nice thing to do
+        self.log_capture_string.close()
+        print(log_contents)
 
     def json_grabber(self, module):
         """utility for grabbing data"""
@@ -124,14 +177,14 @@ class CustomerDashboard(object):
         j = self.json_grabber("v2/views")
         return j
 
-    def get_cases(self):
-        """get case data"""
-        j = self.json_grabber("v2/cases")
-        return j
-
     def get_errata(self):
         """get errata data"""
         j = self.json_grabber("v2/errata")
+        return j
+
+    def get_cases(self):
+        """get case data"""
+        j = self.json_grabber("v2/cases")
         return j
 
     def get_labs(self):
@@ -149,49 +202,49 @@ class CustomerDashboard(object):
         # special case for cases due to different structure of data
         # print all values, including zeros if include flag is set
         if include and dict_keys != ["cases"]:
-            print("")
-            print("-----------------------------------------------------------------")
-            print("******************* {:^25s} *******************".format(header))
-            print("-----------------------------------------------------------------")
+            self.logger.info("")
+            self.logger.info("-----------------------------------------------------------------")
+            self.logger.info("******************* {:^25s} *******************".format(header))
+            self.logger.info("-----------------------------------------------------------------")
             self.print_nested_dicts(data)
 
         elif dict_keys == ["cases"]:
             if data["total"] != 0:
-                print("")
-                print("-----------------------------------------------------------------")
-                print("******************* {:^25s} *******************".format(header))
-                print("-----------------------------------------------------------------")
+                self.logger.info("")
+                self.logger.info("-----------------------------------------------------------------")
+                self.logger.info("******************* {:^25s} *******************".format(header))
+                self.logger.info("-----------------------------------------------------------------")
                 self.print_nested_dicts(data["overallSeverityTotal"])
             elif include:
-                print("")
-                print("-----------------------------------------------------------------")
-                print("******************* {:^25s} *******************".format(header))
-                print("-----------------------------------------------------------------")
+                self.logger.info("")
+                self.logger.info("-----------------------------------------------------------------")
+                self.logger.info("******************* {:^25s} *******************".format(header))
+                self.logger.info("-----------------------------------------------------------------")
                 self.print_nested_dicts(data["overallSeverityTotal"])
 
         # if our filter is one level deep
         elif len(dict_keys) == 1:
             if data[dict_keys[0]] != 0:
-                print("")
-                print("-----------------------------------------------------------------")
-                print("******************* {:^25s} *******************".format(header))
-                print("-----------------------------------------------------------------")
+                self.logger.info("")
+                self.logger.info("-----------------------------------------------------------------")
+                self.logger.info("******************* {:^25s} *******************".format(header))
+                self.logger.info("-----------------------------------------------------------------")
                 self.print_nested_dicts(data)
 
         # if our filter is two levels deep
         elif len(dict_keys) == 2:
             if data[dict_keys[0]][dict_keys[1]] != 0:
-                print("")
-                print("-----------------------------------------------------------------")
-                print("******************* {:^25s} *******************".format(header))
-                print("-----------------------------------------------------------------")
+                self.logger.info("")
+                self.logger.info("-----------------------------------------------------------------")
+                self.logger.info("******************* {:^25s} *******************".format(header))
+                self.logger.info("-----------------------------------------------------------------")
                 self.print_nested_dicts(data)
 
         else:
-            print("")
-            print("-----------------------------------------------------------------")
-            print("******************* {:^25s} *******************".format(header))
-            print("-----------------------------------------------------------------")
+            self.logger.info("")
+            self.logger.info("-----------------------------------------------------------------")
+            self.logger.info("******************* {:^25s} *******************".format(header))
+            self.logger.info("-----------------------------------------------------------------")
             self.print_nested_dicts(data)
 
     def parse_views(self, view_data):
@@ -294,11 +347,12 @@ class CustomerDashboard(object):
         """utility for printing out nested dicts, hence the recursiveness"""
         for k, v in d.items():
             if isinstance(v, dict):
-                print("\n  " + k)
-                print("  -------------------------------------------")
+                self.logger.info("\n " + k)
+                self.logger.info("  -------------------------------------------")
                 self.print_nested_dicts(v)
+
             else:
-                print("  {:<15} : {:<10}".format(k, str(v)))
+                self.logger.info("  {:<15} : {:<10}".format(k, str(v)))
 
 
 if __name__ == "__main__":

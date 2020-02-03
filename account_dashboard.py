@@ -7,6 +7,8 @@ import concurrent.futures
 import logging
 import io
 import datetime
+from datetime import date
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--user", help="provide user name for https://access.redhat.com/", default="", required=True)
@@ -15,7 +17,8 @@ parser.add_argument("-sd", "--startdate", help="provide the start date of the da
 parser.add_argument("-ed", "--enddate", help="provide the end date of the data you would like to review (YYYY-MM-DD format)", default="", required=True)
 parser.add_argument("-a", "--accountsearch", help="the account name you would like to search for", default="")
 parser.add_argument("-i", "--include", help="include accounts that have 0 values", action="store_true", default=False)
-parser.add_argument("-c", "--csv", help="also send data to csv file in same dir as script", action="store_true", default=False)
+parser.add_argument("-c", "--csvout", help="also send data to csv file in same dir as script", action="store_true", default=False)
+parser.add_argument("-o", "--fileoutput", help="output filename for csv", default="customer-dashboard.csv")
 parser.add_argument("-f", "--file", help="load account numbers from CSV file", default="")
 
 
@@ -24,7 +27,8 @@ user = args.user
 password = args.password
 account_search = args.accountsearch
 include = args.include
-csv = args.csv
+csv_out = args.csvout
+csv_filename = args.fileoutput
 file = args.file
 start_date = args.startdate
 end_date = args.enddate
@@ -39,6 +43,15 @@ def main():
         accounts = get_accounts_from_csv(file)
     else:
         accounts = get_accounts(account_search)
+
+    # create csv_output file and input column headers before threading
+    if csv_out:
+        #destroy previous csv file output
+        file_destroy(csv_filename)
+        #write column headers to csv file output
+        file_write(csv_filename, "Account #,Account Name,Subscriptions,Active,ReadyToRenew,FutureDated,RecentlyExpired," +
+        "Views,Knowledgebase,Product Pages,Discussions,Documentation,Errata,Security,Enhancement,Bug Fix," +
+        "Cases,Severity 1,Severity 2,Severity 3,Severity 4,Closed\n")
 
     # if you need to debug comment out the futures loop and use this one
     #for account_number, account_name in accounts.items():
@@ -83,8 +96,13 @@ def account_run(account_number, account_name):
 
     account.close_logger()
 
-    if csv:
-        #csv instructions here
+    if csv_out:
+        account.csv_account(account_name, account_number)
+        account.csv_subs(subs)
+        account.csv_views(views)
+        account.csv_errata(errata)
+        account.csv_cases(cases)
+        file_write(csv_filename, "\n")
         pass
 
 
@@ -132,6 +150,17 @@ def get_accounts(account_search):
 
     return account_dict
 
+def file_destroy(filename):
+    #destroy file e.g. previous csv output file
+    if os.path.exists(filename):
+        os.remove(filename)
+    pass
+
+def file_write(filename, data):
+    #write string data to file (filename)
+    with open(filename, 'a+') as f:
+        f.write(data)
+    pass
 
 class CustomerDashboard(object):
     """object created for each account"""
@@ -323,24 +352,52 @@ class CustomerDashboard(object):
         self.parser_print(keys, header, subs_data)
         pass
 
-    def csv_views(self, view_data):
-        """generate csv output for view_data"""
-        pass
-
-    def csv_cases(self, case_data):
-        """generate csv output for case_data"""
-        pass
-
-    def csv_errata(self, errata_data):
-        """generate csv output for errata_data"""
-        pass
-
-    def csv_labs(self, labs_data):
-        """generate csv output for labs_data"""
+    def csv_account(self, account_name, account_number):
+        #account details for csv
+        file_write(csv_filename, account_number + "," + account_name + ",")
         pass
 
     def csv_subs(self, subs_data):
-        """generate csv output for subs_data"""
+        #subscription details for csv
+        csv_data = (str(subs_data["active"]) +
+        "," + str(subs_data["readyToRenew"]) +
+        "," + str(subs_data["futureDated"]) +
+        "," + str(subs_data["recentlyExpired"]) + ",")
+        file_write(csv_filename, csv_data)
+        pass
+
+    def csv_views(self, view_data):
+        #view details for csv
+        csv_data = (str(view_data["grandTotal"]["total"]) +
+        ","  + str(view_data["grandTotal"]["Knowledgebase"]) +
+        "," + str(view_data["grandTotal"]["Product Pages"]) +
+        "," + str(view_data["grandTotal"]["Discussions"]) +
+        "," + str(view_data["grandTotal"]["Documentation"]) + ",")
+        file_write(csv_filename, csv_data)
+        pass
+
+    def csv_errata(self, errata_data):
+        #errata details for csv
+        csv_data = ("0,0,0,0,")
+        if errata_data["grandTotal"] != 0:
+            csv_data = (str(errata_data["grandTotal"]) +
+            "," + str(errata_data["byType"]["security"]) +
+            "," + str(errata_data["byType"]["enhancement"]) +
+            "," + str(errata_data["byType"]["bugfix"]) + ",")
+        file_write(csv_filename, csv_data)
+        pass
+
+    def csv_cases(self, case_data):
+        #case details for csv
+        csv_data = ("0,0,0,0,0,0")
+        if case_data["total"] != 0:
+            csv_data = (str(case_data["total"]) +
+            "," + str(case_data["overallSeverityTotal"]["Severity 1"]) +
+            "," + str(case_data["overallSeverityTotal"]["Severity 2"]) +
+            "," + str(case_data["overallSeverityTotal"]["Severity 3"]) +
+            "," + str(case_data["overallSeverityTotal"]["Severity 4"]) +
+            "," + str(case_data["closed"]))
+        file_write(csv_filename, csv_data)
         pass
 
     def print_nested_dicts(self, d):

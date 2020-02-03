@@ -46,7 +46,7 @@ def main():
 
         # write column headers to csv file output
         file_write(csv_filename, "Account #,Account Name,Subscriptions,Active,ReadyToRenew,FutureDated,RecentlyExpired," + "Views,Knowledgebase,Product Pages,Discussions,Documentation,Errata,Security,Enhancement,Bug Fix," + "Cases,Severity 1,Severity 2,Severity 3,Severity 4,Closed\n")
-        
+
     # if you need to debug comment out the futures loop and use this one
     #for account_number, account_name in accounts.items():
     #    account_run(account_number, account_name)
@@ -62,6 +62,9 @@ def main():
 
 def account_run(account_number, account_name):
     """orchestrates the calling of other functions for calling"""
+    # replace commas in account names so that csv output doesn't break
+    account_name = account_name.replace(",", " ")
+
     account = CustomerDashboard(account_number, account_name)
     account.create_logger()
 

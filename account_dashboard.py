@@ -6,8 +6,6 @@ import sys
 import concurrent.futures
 import logging
 import io
-import datetime
-from datetime import date
 import os
 
 parser = argparse.ArgumentParser()
@@ -36,9 +34,6 @@ end_date = args.enddate
 
 def main():
     """main function, instantiates object for each account"""
-
-    start = datetime.datetime.now()
-
     if file:
         accounts = get_accounts_from_csv(file)
     else:
@@ -46,25 +41,23 @@ def main():
 
     # create csv_output file and input column headers before threading
     if csv_out:
-        #destroy previous csv file output
+        # destroy previous csv file output
         file_destroy(csv_filename)
-        #write column headers to csv file output
-        file_write(csv_filename, "Account #,Account Name,Subscriptions,Active,ReadyToRenew,FutureDated,RecentlyExpired," +
-        "Views,Knowledgebase,Product Pages,Discussions,Documentation,Errata,Security,Enhancement,Bug Fix," +
-        "Cases,Severity 1,Severity 2,Severity 3,Severity 4,Closed\n")
 
+        # write column headers to csv file output
+        file_write(csv_filename, "Account #,Account Name,Subscriptions,Active,ReadyToRenew,FutureDated,RecentlyExpired," + "Views,Knowledgebase,Product Pages,Discussions,Documentation,Errata,Security,Enhancement,Bug Fix," + "Cases,Severity 1,Severity 2,Severity 3,Severity 4,Closed\n")
+        
     # if you need to debug comment out the futures loop and use this one
     #for account_number, account_name in accounts.items():
     #    account_run(account_number, account_name)
+
+    print("Account data collection beginning, please be patient...")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
         fs = [executor.submit(account_run, account_number, account_name) for account_number, account_name in accounts.items()]
         concurrent.futures.wait(fs)
 
     print("Account Parsing Finished, a total of " + str(len(accounts)) + " accounts were checked.")
-    end = datetime.datetime.now()
-    delta = end - start
-    print(delta)
 
 
 def account_run(account_number, account_name):
@@ -103,7 +96,6 @@ def account_run(account_number, account_name):
         account.csv_errata(errata)
         account.csv_cases(cases)
         file_write(csv_filename, "\n")
-        pass
 
 
 def get_accounts_from_csv(file):
@@ -150,17 +142,18 @@ def get_accounts(account_search):
 
     return account_dict
 
+
 def file_destroy(filename):
-    #destroy file e.g. previous csv output file
+    # destroy file e.g. previous csv output file
     if os.path.exists(filename):
         os.remove(filename)
-    pass
+
 
 def file_write(filename, data):
-    #write string data to file (filename)
+    # write string data to file (filename)
     with open(filename, 'a+') as f:
         f.write(data)
-    pass
+
 
 class CustomerDashboard(object):
     """object created for each account"""
@@ -182,7 +175,7 @@ class CustomerDashboard(object):
         self.logger.info("")
         self.logger.info("-------------------------------------------------------------------------------------")
         self.logger.info("-------------------------------------------------------------------------------------")
-        self.logger.info("*********************** {:^25s}  ({:^8s}) ***********************".format(self.account_name, self.account_number))
+        self.logger.info("************ {:^45s}  ({:^10s}) ************".format(self.account_name, self.account_number))
         self.logger.info("-------------------------------------------------------------------------------------")
         self.logger.info("-------------------------------------------------------------------------------------")
 
@@ -295,31 +288,31 @@ class CustomerDashboard(object):
         # this is gross but there for consistent formatting
         if errata_data["grandTotal"] == 0:
             if include:
-                print("")
-                print("-----------------------------------------------------------------")
-                print("******************* {:^25s} *******************".format("Errata Data"))
-                print("-----------------------------------------------------------------")
-                print("  Critical: 0")
-                print("  Important: 0")
-                print("  Moderate: 0")
-                print("  Low: 0")
-                print("  Bugfix: 0")
-                print("  Security: 0")
-                print("  Enhancement: 0")
+                self.logger.info("")
+                self.logger.info("-----------------------------------------------------------------")
+                self.logger.info("******************* {:^25s} *******************".format("Errata Data"))
+                self.logger.info("-----------------------------------------------------------------")
+                self.logger.info("  Critical: 0")
+                self.logger.info("  Important: 0")
+                self.logger.info("  Moderate: 0")
+                self.logger.info("  Low: 0")
+                self.logger.info("  Bugfix: 0")
+                self.logger.info("  Security: 0")
+                self.logger.info("  Enhancement: 0")
         # if no errata is consumed return from function
             return
 
-        print("")
-        print("-----------------------------------------------------------------")
-        print("******************* {:^25s} *******************".format("Errata Data"))
-        print("-----------------------------------------------------------------")
-        print("  Critical: " + str(errata_data["bySeverity"]["Critical"]))
-        print("  Important: " + str(errata_data["bySeverity"]["Important"]))
-        print("  Moderate: " + str(errata_data["bySeverity"]["Moderate"]))
-        print("  Low: " + str(errata_data["bySeverity"]["Low"]))
-        print("  Bugfix: " + str(errata_data["byType"]["bugfix"]))
-        print("  Security: " + str(errata_data["byType"]["security"]))
-        print("  Enhancement: " + str(errata_data["byType"]["enhancement"]))
+        self.logger.info("")
+        self.logger.info("-----------------------------------------------------------------")
+        self.logger.info("******************* {:^25s} *******************".format("Errata Data"))
+        self.logger.info("-----------------------------------------------------------------")
+        self.logger.info("  Critical: " + str(errata_data["bySeverity"]["Critical"]))
+        self.logger.info("  Important: " + str(errata_data["bySeverity"]["Important"]))
+        self.logger.info("  Moderate: " + str(errata_data["bySeverity"]["Moderate"]))
+        self.logger.info("  Low: " + str(errata_data["bySeverity"]["Low"]))
+        self.logger.info("  Bugfix: " + str(errata_data["byType"]["bugfix"]))
+        self.logger.info("  Security: " + str(errata_data["byType"]["security"]))
+        self.logger.info("  Enhancement: " + str(errata_data["byType"]["enhancement"]))
 
     def parse_labs(self, labs_data):
         """parse out labs into something readable"""
@@ -338,67 +331,47 @@ class CustomerDashboard(object):
                 try:
                     header
                 except NameError:
-                    print("")
-                    print("-----------------------------------------------------------------")
-                    print("******************* {:^25s} *******************".format("Labs Data"))
-                    print("-----------------------------------------------------------------")
+                    self.logger.info("")
+                    self.logger.info("-----------------------------------------------------------------")
+                    self.logger.info("******************* {:^25s} *******************".format("Labs Data"))
+                    self.logger.info("-----------------------------------------------------------------")
                     header = True
-                print("  " + k + ": " + str(len(v)))
+                self.logger.info("  " + k + ": " + str(len(v)))
 
     def parse_subs(self, subs_data):
         """parse out subs into something readable"""
         keys = ["active"]
         header = "Subscription Data"
         self.parser_print(keys, header, subs_data)
-        pass
 
     def csv_account(self, account_name, account_number):
-        #account details for csv
+        # account details for csv
         file_write(csv_filename, account_number + "," + account_name + ",")
-        pass
 
     def csv_subs(self, subs_data):
-        #subscription details for csv
-        csv_data = (str(subs_data["active"]) +
-        "," + str(subs_data["readyToRenew"]) +
-        "," + str(subs_data["futureDated"]) +
-        "," + str(subs_data["recentlyExpired"]) + ",")
+        # subscription details for csv
+        total = subs_data["active"] + subs_data["readyToRenew"] + subs_data["futureDated"] + subs_data["recentlyExpired"]
+        csv_data = (str(total) + "," + str(subs_data["active"]) + "," + str(subs_data["readyToRenew"]) + "," + str(subs_data["futureDated"]) + "," + str(subs_data["recentlyExpired"]) + ",")
         file_write(csv_filename, csv_data)
-        pass
 
     def csv_views(self, view_data):
-        #view details for csv
-        csv_data = (str(view_data["grandTotal"]["total"]) +
-        ","  + str(view_data["grandTotal"]["Knowledgebase"]) +
-        "," + str(view_data["grandTotal"]["Product Pages"]) +
-        "," + str(view_data["grandTotal"]["Discussions"]) +
-        "," + str(view_data["grandTotal"]["Documentation"]) + ",")
+        # view details for csv
+        csv_data = (str(view_data["grandTotal"]["total"]) + "," + str(view_data["grandTotal"]["Knowledgebase"]) + "," + str(view_data["grandTotal"]["Product Pages"]) + "," + str(view_data["grandTotal"]["Discussions"]) + "," + str(view_data["grandTotal"]["Documentation"]) + ",")
         file_write(csv_filename, csv_data)
-        pass
 
     def csv_errata(self, errata_data):
-        #errata details for csv
+        # errata details for csv
         csv_data = ("0,0,0,0,")
         if errata_data["grandTotal"] != 0:
-            csv_data = (str(errata_data["grandTotal"]) +
-            "," + str(errata_data["byType"]["security"]) +
-            "," + str(errata_data["byType"]["enhancement"]) +
-            "," + str(errata_data["byType"]["bugfix"]) + ",")
+            csv_data = (str(errata_data["grandTotal"]) + "," + str(errata_data["byType"]["security"]) + "," + str(errata_data["byType"]["enhancement"]) + "," + str(errata_data["byType"]["bugfix"]) + ",")
         file_write(csv_filename, csv_data)
-        pass
 
     def csv_cases(self, case_data):
-        #case details for csv
+        # case details for csv
         csv_data = ("0,0,0,0,0,0")
         if case_data["total"] != 0:
-            csv_data = (str(case_data["total"]) +
-            "," + str(case_data["overallSeverityTotal"]["Severity 1"]) +
-            "," + str(case_data["overallSeverityTotal"]["Severity 2"]) +
-            "," + str(case_data["overallSeverityTotal"]["Severity 3"]) +
-            "," + str(case_data["overallSeverityTotal"]["Severity 4"]) +
-            "," + str(case_data["closed"]))
+            csv_data = (str(case_data["total"]) + "," + str(case_data["overallSeverityTotal"]["Severity 1"]) + "," + str(case_data["overallSeverityTotal"]["Severity 2"]) + "," + str(case_data["overallSeverityTotal"]["Severity 3"]) + "," + str(case_data["overallSeverityTotal"]["Severity 4"]) + "," + str(case_data["closed"]))
         file_write(csv_filename, csv_data)
-        pass
 
     def print_nested_dicts(self, d):
         """utility for printing out nested dicts, hence the recursiveness"""

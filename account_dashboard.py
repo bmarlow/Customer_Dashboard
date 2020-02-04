@@ -107,7 +107,11 @@ def get_accounts_from_csv(file):
     with open(file) as f:
         account_numbers_list = f.readlines()
 
-    account_numbers = account_numbers_list[0].split(",")
+    # get rid of nagging newline
+    account_numbers = account_numbers_list[0].rstrip()
+
+    # split into a list
+    account_numbers = account_numbers.split(",")
 
     for account_number in account_numbers:
         account_dict.update({account_number: "Import from CSV, No name Provided"})
